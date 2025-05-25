@@ -1,6 +1,6 @@
 # XAI
 
-| Aspect               | Traditional XAI (e.g., SHAP, LIME)                   | SOM-Based Explanations                                             |
+| Aspect               | Traditional XAI                                      | SOM-Based Explanations                                             |
 | -------------------- | ---------------------------------------------------- | ------------------------------------------------------------------ |
 | **Scope**            | Local (instance-specific)                            | Global (map-wide, concept-level)                                   |
 | **Explanation Type** | Feature attribution                                  | Conceptual clustering and labeling                                 |
