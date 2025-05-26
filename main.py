@@ -23,9 +23,9 @@ def main():
 
         main_logger.info("Dataset downloaded successfully.")
 
-        dataLoader            = DataLoader()   
-        diabetes_raw_df       = dataLoader.data_loader(file_path = Config.DIABETES_RAW_DATASET_PATH)
-        main_logger.info("Data loaded successfully:")
+        # dataLoader            = DataLoader()   
+        # diabetes_raw_df       = dataLoader.data_loader(file_path = Config.DIABETES_RAW_DATASET_PATH)
+        # main_logger.info("Data loaded successfully:")
 
     
     except Exception as e:
