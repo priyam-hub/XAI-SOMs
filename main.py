@@ -5,6 +5,7 @@ from logger.logger import LoggerSetup
 from src.utils.data_loader import DataLoader
 from src.utils.download_dataset import DownloadData
 from src.data_cleaner.data_cleaner import DataCleaner
+from src.feature_engineering.feature_engineering import FeatureEngineer
 from src.exploratory_data_analysis.exploratory_data_analyzer import XAI_SOM_EDA
 
 import warnings
@@ -43,6 +44,19 @@ def main():
                               file_path = Config.DIABETES_CLEANED_DATASET_PATH
                               )
         main_logger.info("Cleaned data saved successfully.")
+
+        feature_engineer      = FeatureEngineer(dataframe  = diabetes_cleaned_df,
+                                                output_dir = Config.RESULTS_PATH
+                                                )
+        
+        featured_df           = feature_engineer.feature_extraction()
+        feature_engineer.feature_importance()
+
+        dataLoader.data_saver(dataframe = featured_df,
+                              file_path = Config.DIABETES_EXTRACTED_FEATURES_PATH
+                              )
+
+        main_logger.info("Feature engineering completed successfully.")
     
     except Exception as e:
         
