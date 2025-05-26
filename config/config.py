@@ -8,11 +8,11 @@ class Config:
     It also provides a method to ensure required directories exist.
     """
 
-    EDA_RESULTS_PATH                        = "./results/eda_results"
+    DIABETES_EDA_RESULTS_PATH               = "./results/eda_results"
     DIABETES_RAW_DATASET_PATH               = "./data/diabetes.csv"
     DIABETES_PROCESSED_DATASET_PATH         = "./data/diabetes_processed_data.csv"
 
-    DIABETES_DATASET_NAME                   = "alexteboul/diabetes-health-indicators-dataset"
+    DIABETES_DATASET_NAME                   = "uciml/pima-indians-diabetes-database"
     DIABETES_DATASET_SAVE_PATH              = "./data/"
 
 
