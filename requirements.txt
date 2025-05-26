@@ -1,0 +1,12 @@
+numpy
+pandas
+kaggle
+seaborn
+librosa
+colorama
+langchain
+streamlit
+matplotlib
+scikit-learn
+python-dotenv
+-e .
