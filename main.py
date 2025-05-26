@@ -4,6 +4,7 @@ from config.config import Config
 from logger.logger import LoggerSetup
 from src.utils.data_loader import DataLoader
 from src.utils.download_dataset import DownloadData
+from src.data_cleaner.data_cleaner import DataCleaner
 from src.exploratory_data_analysis.exploratory_data_analyzer import XAI_SOM_EDA
 
 import warnings
@@ -28,11 +29,20 @@ def main():
         diabetes_raw_df       = dataLoader.data_loader(file_path = Config.DIABETES_RAW_DATASET_PATH)
         main_logger.info("Data loaded successfully")
 
-        data_analyzer         = XAI_SOM_EDA(dataframe  = diabetes_raw_df, 
-                                            output_dir = Config.DIABETES_EDA_RESULTS_PATH
-                                            )
-        data_analyzer.run_all_eda()
-        main_logger.info("EDA completed successfully.")
+        # data_analyzer         = XAI_SOM_EDA(dataframe  = diabetes_raw_df, 
+        #                                     output_dir = Config.DIABETES_EDA_RESULTS_PATH
+        #                                     )
+        # data_analyzer.run_all_eda()
+        # main_logger.info("EDA completed successfully.")
+
+        cleaner               = DataCleaner(dataframe = diabetes_raw_df)
+        diabetes_cleaned_df   = cleaner.clean_Data()
+        main_logger.info("Data cleaning completed successfully.")
+        
+        dataLoader.data_saver(dataframe = diabetes_cleaned_df, 
+                              file_path = Config.DIABETES_CLEANED_DATASET_PATH
+                              )
+        main_logger.info("Cleaned data saved successfully.")
     
     except Exception as e:
         
