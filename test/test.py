@@ -1,240 +1,578 @@
+# DEPENDENCIES
+
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
+from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler
+
 import warnings
 warnings.filterwarnings('ignore')
 
+from logger.logger import LoggerSetup
+
+# LOGGER SETUP
+test_logger = LoggerSetup(logger_name = "test.py", log_filename_prefix = "test").get_logger()
+
+
 class HealthcareSOM:
-    def __init__(self, width=10, height=10, input_dim=None, learning_rate=0.1):
+    """
+    A Self-Organizing Map (SOM) implementation tailored for Healthcare Data Analysis.
+
+    This class provides an unsupervised neural network model that maps high-dimensional input
+    data into a lower-dimensional (typically 2D) space to identify clusters or patterns in 
+    healthcare data.
+
+    Attributes:
+
+        - `width`                {int}        : Width of the SOM grid.
+
+        - `height`               {int}        : Height of the SOM grid.
+        
+        - `input_dim`            {int}        : Dimensionality of the input data.
+        
+        - `learning_rate`        {float}      : Initial learning rate for weight updates.
+        
+        - `weights`            {np.ndarray}   : Weights of the SOM neurons.
+        
+        - `trained`              {bool}       : Indicates if the SOM has been trained.
+    """
+
+    def __init__(self, width : int = 10, height : int = 10, input_dim : int  = None, learning_rate : int = 0.1) -> None:
         """
-        Self-Organizing Map for Healthcare Data Analysis
+        Initialize the HealthcareSOM instance with grid dimensions and input configuration.
+
+        Arguments:
+
+            - `width`               {int}      : Width of the SOM grid. Default is 10.
+
+            - `height`              {int}      : Height of the SOM grid. Default is 10.
+            
+            - `input_dim`           {int}      : Dimensionality of the input data. Must be provided before training.
+            
+            - `learning_rate`      {float}     : Learning rate for the SOM training process. Default is 0.1.
+
+        Raises:
+        
+            ValueError                         : If input_dim is not provided.
+        
         """
-        self.width = width
-        self.height = height
-        self.input_dim = input_dim
-        self.learning_rate = learning_rate
-        self.weights = None
-        self.trained = False
+
+        try:
+            if input_dim is None:
+                test_logger.error("Input dimension must be specified before training the SOM.")
+
+                raise ValueError("Input dimension must be specified before training the SOM.")
         
-    def initialize_weights(self, data):
-        """Initialize SOM weights using PCA or random initialization"""
-        self.input_dim = data.shape[1]
-        # Use PCA for better initialization
-        pca = PCA(n_components=2)
-        pca.fit(data)
+            self.width           = width
+            self.height          = height
+            self.input_dim       = input_dim
+            self.learning_rate   = learning_rate
+            self.weights         = None
+            self.trained         = False
+
+            test_logger.info(f"SOM initialized with width = {width}, height = {height}, input_dim = {input_dim}, learning_rate = {learning_rate}")
+
+        except Exception as e:
+            test_logger.error(f"Error initializing HealthcareSOM: {repr(e)}")
+
+            raise
+
         
-        # Initialize weights along first two principal components
-        self.weights = np.random.randn(self.width, self.height, self.input_dim) * 0.1
-        
-        # Better initialization using data statistics
-        for i in range(self.width):
-            for j in range(self.height):
-                self.weights[i, j] = np.random.normal(
-                    np.mean(data, axis=0), 
-                    np.std(data, axis=0) * 0.1
-                )
-    
-    def find_bmu(self, sample):
-        """Find Best Matching Unit for a given sample"""
-        distances = np.zeros((self.width, self.height))
-        for i in range(self.width):
-            for j in range(self.height):
-                distances[i, j] = np.linalg.norm(sample - self.weights[i, j])
-        
-        bmu_idx = np.unravel_index(np.argmin(distances), distances.shape)
-        return bmu_idx, np.min(distances)
-    
-    def neighborhood_function(self, bmu_idx, node_idx, radius):
-        """Calculate neighborhood influence"""
-        dist = np.linalg.norm(np.array(bmu_idx) - np.array(node_idx))
-        return np.exp(-(dist**2) / (2 * radius**2))
-    
-    def train(self, data, epochs=1000, initial_radius=None):
-        """Train the SOM"""
-        if initial_radius is None:
-            initial_radius = max(self.width, self.height) / 2
-        
-        self.initialize_weights(data)
-        
-        for epoch in range(epochs):
-            # Decay parameters
-            current_learning_rate = self.learning_rate * np.exp(-epoch / epochs)
-            current_radius = initial_radius * np.exp(-epoch / epochs)
+    def initialize_weights(self, data : pd.DataFrame) -> None: 
+        """
+        Initialize SOM weights using random values based on the input data's statistical distribution.
+
+        The function sets the input dimension based on the shape of the input DataFrame,
+        and then initializes the SOM weight vectors randomly with small values centered around
+        the mean and standard deviation of the input features.
+
+        Arguments:
             
-            # Shuffle data for each epoch
-            shuffled_data = data[np.random.permutation(len(data))]
+            - `data`        {pd.DataFrame}          : Input data used to initialize the SOM weights. Each row is a data point.
+
+        Raises:
+
+            - ValueError                            : If the input data is empty or not a DataFrame.
+
+            - Exception                             : For any unexpected errors during initialization.
+        """
+        
+        try:
+        
+            if data is None or not isinstance(data, pd.DataFrame) or data.empty:
+                test_logger.error("Input data must be a non-empty pandas DataFrame.")
+
+                raise ValueError("Input data must be a non-empty pandas DataFrame.")
+        
+            self.input_dim     = data.shape[1]
+            test_logger.info(f"Input dimension set to {self.input_dim}")
+
+            pca                = PCA(n_components = 2)
+            pca.fit(data)
+            test_logger.info("PCA fit completed for initialization.")
             
-            for sample in shuffled_data:
-                # Find BMU
-                bmu_idx, _ = self.find_bmu(sample)
+            self.weights       = np.random.randn(self.width, self.height, self.input_dim) * 0.1
+            
+            for i in range(self.width):
+                for j in range(self.height):
+                    self.weights[i, j] = np.random.normal(np.mean(data, axis = 0), 
+                                                          np.std(data, axis = 0) * 0.1
+                                                          )
+                    
+            test_logger.info("Weight initialization completed successfully.")
+
+        except ValueError as ve:
+            test_logger.error(f"ValueError during weight initialization: {repr(ve)}")
+            
+            raise
+
+        except Exception as e:
+            test_logger.error(f"Unexpected error during weight initialization: {repr(e)}")
+            
+            raise
+    
+    def find_bmu(self, sample : np.ndarray) -> tuple [tuple, float]:
+        """
+        Find the Best Matching Unit (BMU) for a given input sample.
+
+        The BMU is the neuron whose weight vector is closest to the input sample
+        in terms of Euclidean distance.
+
+        Arguments:
+
+            - `sample`        {np.ndarray}        : The input vector for which the BMU is to be found.
+
+        Returns:
+
+            tuple: A tuple containing:
                 
-                # Update weights
-                for i in range(self.width):
-                    for j in range(self.height):
-                        influence = self.neighborhood_function(
-                            bmu_idx, (i, j), current_radius
-                        )
-                        self.weights[i, j] += (
-                            current_learning_rate * influence * 
-                            (sample - self.weights[i, j])
-                        )
-            
-            if epoch % 100 == 0:
-                print(f"Epoch {epoch}/{epochs} completed")
-        
-        self.trained = True
-        print("SOM training completed!")
-    
-    def map_data(self, data):
-        """Map data points to SOM grid"""
-        mapped_data = []
-        for sample in data:
-            bmu_idx, distance = self.find_bmu(sample)
-            mapped_data.append({
-                'bmu_x': bmu_idx[0],
-                'bmu_y': bmu_idx[1],
-                'distance': distance
-            })
-        return mapped_data
-    
-    def calculate_u_matrix(self):
-        """Calculate U-Matrix for cluster boundary visualization"""
-        u_matrix = np.zeros((self.width, self.height))
-        
-        for i in range(self.width):
-            for j in range(self.height):
-                neighbors = []
-                # Get all valid neighbors
-                for di in [-1, 0, 1]:
-                    for dj in [-1, 0, 1]:
-                        ni, nj = i + di, j + dj
-                        if 0 <= ni < self.width and 0 <= nj < self.height and (di != 0 or dj != 0):
-                            neighbors.append(self.weights[ni, nj])
+                - bmu_idx        {tuple}          : Coordinates of the BMU in the SOM grid.
                 
-                # Calculate average distance to neighbors
-                if neighbors:
-                    distances = [np.linalg.norm(self.weights[i, j] - neighbor) 
-                               for neighbor in neighbors]
-                    u_matrix[i, j] = np.mean(distances)
+                - min_dist       {float}          : Minimum Euclidean distance between the sample and BMU.
+
+        Raises:
+            
+            Exception: If an error occurs during BMU computation.
         
-        return u_matrix
+        """
+        
+        try:
+        
+            distances               = np.zeros((self.width, self.height))
+        
+            for i in range(self.width):
+        
+                for j in range(self.height):
+                    distances[i, j] = np.linalg.norm(sample - self.weights[i, j])
+
+            bmu_idx                 = np.unravel_index(np.argmin(distances), distances.shape)
+            min_dist                = np.min(distances)
+
+            test_logger.info(f"BMU found at {bmu_idx} with distance {min_dist:.4f}")
+            
+            return bmu_idx, min_dist
+
+        except Exception as e:
+            test_logger.error(f"Error finding BMU: {repr(e)}")
+            
+            raise
+
+    
+    def neighborhood_function(self, bmu_idx : tuple, node_idx : tuple, radius : float) -> float:
+        """
+        Calculate the neighborhood influence of a node based on its distance from the BMU.
+
+        This function applies a Gaussian decay to reduce the influence of distant nodes.
+
+        Arguments:
+            
+            - `bmu_idx`         {tuple}       : Coordinates of the Best Matching Unit.
+
+            - `node_idx`        {tuple}       : Coordinates of the current node in the SOM grid.
+            
+            - `radius`          {float}       : Neighborhood radius determining spread of influence.
+
+        Returns:
+            
+            float                             : The influence factor (between 0 and 1).
+
+        Raises:
+            
+            Exception                         : If computation of influence fails.
+        
+        """
+        
+        try:
+        
+            dist         = np.linalg.norm(np.array(bmu_idx) - np.array(node_idx))
+            influence    = np.exp(-(dist ** 2) / (2 * (radius ** 2)))
+
+            test_logger.debug(f"Neighborhood influence from {bmu_idx} to {node_idx} with radius {radius} is {influence:.4f}")
+            return influence
+
+        except Exception as e:
+            test_logger.error(f"Error in neighborhood function: {repr(e)}")
+           
+            raise
+
+    
+    def train(self, data: np.ndarray, epochs : int = 1000, initial_radius : float = None) -> None:
+        """
+        Train the Self-Organizing Map (SOM) on the provided dataset.
+
+        This method initializes weights, applies learning rate and neighborhood decay,
+        finds Best Matching Units (BMUs), and updates the SOM weights over several epochs.
+
+        Arguments:
+
+            - `data`               {np.ndarray}      : Input data to train the SOM. Each row is a data point.
+
+            - `epochs`                 {int}         : Number of training epochs. Default is 1000.
+            
+            - `initial_radius`   {float, optional}   : Initial neighborhood radius. 
+                                                       If None, defaults to half of the max(width, height).
+
+        Raises:
+
+            Exception                                : If training fails at any stage.
+        
+        """
+        
+        try:
+        
+            if not isinstance(data, np.ndarray) or data.ndim != 2:
+                raise ValueError("Training data must be a 2D NumPy array.")
+
+            if initial_radius is None:
+                initial_radius = max(self.width, self.height) / 2
+
+            test_logger.info(f"Training started for {epochs} epochs with initial_radius = {initial_radius}")
+
+            self.initialize_weights(pd.DataFrame(data))  
+
+            for epoch in range(epochs):
+
+                current_learning_rate           = self.learning_rate * np.exp(-epoch / epochs)
+                current_radius                  = initial_radius * np.exp(-epoch / epochs)
+
+                shuffled_data                   = data[np.random.permutation(len(data))]
+
+                for sample in shuffled_data:
+
+                    bmu_idx, _                  = self.find_bmu(sample)
+
+                    for i in range(self.width):
+
+                        for j in range(self.height):
+                            influence           = self.neighborhood_function(bmu_idx, (i, j), current_radius)
+                            self.weights[i, j] += current_learning_rate * influence * (sample - self.weights[i, j])
+
+                if epoch % 100 == 0:
+                    test_logger.info(f"Epoch {epoch}/{epochs} completed")
+
+            self.trained                        = True
+            test_logger.info("SOM training completed successfully.")
+
+        except Exception as e:
+            test_logger.error(f"Error during SOM training: {repr(e)}")
+            
+            raise
+
+    
+    def map_data(self, data : np.ndarray) -> list:
+        """
+        Map each input sample to its Best Matching Unit (BMU) on the SOM grid.
+
+        Arguments:
+
+            - `data`          {np.ndarray}      : Input data samples to be mapped.
+
+        Returns:
+
+            list                                : A list of dictionaries containing BMU coordinates 
+                                                  and distances for each sample.
+
+        Raises:
+
+            Exception                           : If mapping fails for any reason.
+        
+        """
+        
+        try:
+        
+            mapped_data           = []
+        
+            for sample in data:
+                bmu_idx, distance = self.find_bmu(sample)
+                mapped_data.append({'bmu_x'     : bmu_idx[0],
+                                    'bmu_y'     : bmu_idx[1],
+                                    'distance'  : distance
+                                    }
+                                    )
+
+            test_logger.info(f"Mapped {len(data)} data points to SOM grid.")
+            
+            return mapped_data
+
+        except Exception as e:
+            test_logger.error(f"Error while mapping data to SOM grid: {e}")
+            
+            raise
+
+    
+    def calculate_u_matrix(self) -> np.ndarray:
+        """
+        Calculate the U-Matrix (Unified Distance Matrix) for visualizing cluster boundaries.
+
+        The U-Matrix represents the average distance between each SOM node and its neighbors,
+        highlighting areas of high and low similarity.
+
+        Returns :
+
+            - `u_matrix`           {np.ndarray}         : A 2D matrix of the same size as the SOM grid, 
+                                                          containing average neighbor distances.
+
+        Raises:
+
+            Exception: If computation of U-Matrix fails.
+        
+        """
+        
+        try:
+            u_matrix                   = np.zeros((self.width, self.height))
+
+            for i in range(self.width):
+                
+                for j in range(self.height):
+                    neighbors          = []
+                
+                    for di in [-1, 0, 1]:
+                
+                        for dj in [-1, 0, 1]:
+                
+                            ni, nj     = i + di, j + dj
+                
+                            if 0 <= ni < self.width and 0 <= nj < self.height and (di != 0 or dj != 0):
+                                neighbors.append(self.weights[ni, nj])
+
+                    if neighbors:
+                        distances      = [np.linalg.norm(self.weights[i, j] - neighbor) for neighbor in neighbors]
+                        u_matrix[i, j] = np.mean(distances)
+
+            test_logger.info("U-Matrix calculation completed successfully.")
+            
+            return u_matrix
+
+        except Exception as e:
+            test_logger.error(f"Error while calculating U-Matrix: {repr(e)}")
+            
+            raise
+
 
 class HealthcareDataGenerator:
-    """Generate synthetic healthcare dataset"""
+    """
+    A class to generate synthetic patient data for healthcare-related simulations and analysis.
+
+    This generator simulates various patient archetypes, such as healthy individuals, prediabetics,
+    patients with cardiovascular risk, diabetics, and elderly frail individuals.
+
+    The generated dataset includes patient ID, age, BMI, and associated health category.
+
+    Methods:
+
+        - `generate_patient_data`     {n_patients = 500}    : Generates a pandas DataFrame containing synthetic patient data.
+
+    """
     
     @staticmethod
     def generate_patient_data(n_patients=500):
-        np.random.seed(42)
-        
-        # Define patient archetypes
-        archetypes = {
-            'healthy': {'weight': 0.3, 'age_range': (25, 45), 'bmi_range': (18.5, 24.9)},
-            'prediabetic': {'weight': 0.25, 'age_range': (40, 65), 'bmi_range': (25, 35)},
-            'cardiovascular_risk': {'weight': 0.2, 'age_range': (50, 75), 'bmi_range': (28, 40)},
-            'diabetic': {'weight': 0.15, 'age_range': (45, 70), 'bmi_range': (27, 38)},
-            'elderly_frail': {'weight': 0.1, 'age_range': (70, 90), 'bmi_range': (20, 30)}
-        }
-        
-        patients = []
-        patient_id = 1
-        
-        for archetype, params in archetypes.items():
-            n_arch_patients = int(n_patients * params['weight'])
+
+        """
+        Generate a synthetic dataset of patient records based on predefined healthcare archetypes.
+
+        Each archetype represents a segment of the population with specific age and BMI characteristics.
+        The number of patients per archetype is determined by assigned weights.
+
+        Arguments:
+
+            - `n_patients`       {int}          : Total number of synthetic patient records to generate. Default is 500.
+
+        Returns:
+
+            - `patients`     {pd.DataFrame}     : A DataFrame containing synthetic patient data with columns:
+                                                  ['patient_id', 'archetype', 'age', 'bmi']
+
+        """
+
+        try:
+
+            if n_patients <= 0:
+                test_logger.error("Number of patients must be a positive integer.")
+
+                raise ValueError("Number of patients must be a positive integer.")
             
-            for _ in range(n_arch_patients):
-                patient = HealthcareDataGenerator._generate_patient_by_archetype(
-                    patient_id, archetype, params
-                )
-                patients.append(patient)
-                patient_id += 1
+            np.random.seed(42)
+            
+            # Define patient archetypes
+            archetypes = {'healthy'              : {'weight'     : 0.3, 
+                                                    'age_range'  : (25, 45), 
+                                                    'bmi_range'  : (18.5, 24.9)
+                                                    },
+                        'prediabetic'          : {'weight'     : 0.25, 
+                                                    'age_range'  : (40, 65), 
+                                                    'bmi_range'  : (25, 35)
+                                                    },
+                        'cardiovascular_risk'  : {'weight'     : 0.2, 
+                                                    'age_range'  : (50, 75), 
+                                                    'bmi_range'  : (28, 40)
+                                                    },
+                        'diabetic'             : {'weight'     : 0.15, 
+                                                    'age_range'  : (45, 70), 
+                                                    'bmi_range'  : (27, 38)
+                                                    },
+                        'elderly_frail'        : {'weight'     : 0.1, 
+                                                    'age_range'  : (70, 90), 
+                                                    'bmi_range'  : (20, 30)
+                                                    }
+            }
+            
+            patients            = []
+            patient_id          = 1
+            
+            for archetype, params in archetypes.items():
+                n_arch_patients = int(n_patients * params['weight'])
+                
+                for _ in range(n_arch_patients):
+                    patient     = HealthcareDataGenerator._generate_patient_by_archetype(patient_id, 
+                                                                                        archetype, 
+                                                                                        params
+                                                                                        )
+                    patients.append(patient)
+                    patient_id += 1
+
+            test_logger.info(f"Generated {len(patients)} synthetic patient records.")
+            
+            return pd.DataFrame(patients)
         
-        return pd.DataFrame(patients)
+        except Exception as e:
+            test_logger.error(f"Error generating patient data: {repr(e)}")
+            
+            raise
     
+    
+        
     @staticmethod
-    def _generate_patient_by_archetype(patient_id, archetype, params):
-        age = np.random.randint(*params['age_range'])
-        bmi = np.random.uniform(*params['bmi_range'])
+    def _generate_patient_by_archetype(patient_id : int, archetype : str, params : dict) -> dict:
+        """
+        Generate a synthetic patient record for a given archetype.
+
+        Arguments:
+
+            - `patient_id`        {int}       : Unique identifier for the patient.
+
+            - `archetype`         {str}       : Type of patient archetype (e.g., 'healthy', 'diabetic').
+ 
+            - `params`           {dict}       : Dictionary containing age_range and bmi_range for the archetype.
+
+        Returns:
+
+            - `patient`          {dict}       : A dictionary representing the synthetic patient's health data, including:
+           
+        Raises:
+            
+            Exception: If patient generation fails due to invalid input or internal error.
         
-        # Base patient
-        patient = {
-            'patient_id': patient_id,
-            'age': age,
-            'bmi': bmi,
-            'archetype': archetype
-        }
+        """
         
-        # Archetype-specific parameters
-        if archetype == 'healthy':
-            patient.update({
-                'glucose': np.random.normal(90, 5),
-                'bp_systolic': np.random.normal(115, 10),
-                'bp_diastolic': np.random.normal(75, 8),
-                'cholesterol': np.random.normal(180, 20),
-                'hba1c': np.random.normal(5.2, 0.3),
-                'symptom_fatigue': np.random.choice([0, 1], p=[0.9, 0.1]),
-                'symptom_chest_pain': np.random.choice([0, 1], p=[0.95, 0.05]),
-                'symptom_shortness_breath': np.random.choice([0, 1], p=[0.9, 0.1]),
-                'symptom_frequent_urination': np.random.choice([0, 1], p=[0.95, 0.05])
-            })
+        try:
         
-        elif archetype == 'prediabetic':
-            patient.update({
-                'glucose': np.random.normal(105, 8),
-                'bp_systolic': np.random.normal(135, 15),
-                'bp_diastolic': np.random.normal(85, 10),
-                'cholesterol': np.random.normal(220, 30),
-                'hba1c': np.random.normal(5.8, 0.2),
-                'symptom_fatigue': np.random.choice([0, 1], p=[0.4, 0.6]),
-                'symptom_chest_pain': np.random.choice([0, 1], p=[0.8, 0.2]),
-                'symptom_shortness_breath': np.random.choice([0, 1], p=[0.7, 0.3]),
-                'symptom_frequent_urination': np.random.choice([0, 1], p=[0.6, 0.4])
-            })
-        
-        elif archetype == 'cardiovascular_risk':
-            patient.update({
-                'glucose': np.random.normal(95, 10),
-                'bp_systolic': np.random.normal(155, 20),
-                'bp_diastolic': np.random.normal(95, 12),
-                'cholesterol': np.random.normal(260, 40),
-                'hba1c': np.random.normal(5.4, 0.4),
-                'symptom_fatigue': np.random.choice([0, 1], p=[0.3, 0.7]),
-                'symptom_chest_pain': np.random.choice([0, 1], p=[0.2, 0.8]),
-                'symptom_shortness_breath': np.random.choice([0, 1], p=[0.2, 0.8]),
-                'symptom_frequent_urination': np.random.choice([0, 1], p=[0.8, 0.2])
-            })
-        
-        elif archetype == 'diabetic':
-            patient.update({
-                'glucose': np.random.normal(145, 25),
-                'bp_systolic': np.random.normal(145, 18),
-                'bp_diastolic': np.random.normal(90, 12),
-                'cholesterol': np.random.normal(240, 35),
-                'hba1c': np.random.normal(7.2, 0.8),
-                'symptom_fatigue': np.random.choice([0, 1], p=[0.1, 0.9]),
-                'symptom_chest_pain': np.random.choice([0, 1], p=[0.6, 0.4]),
-                'symptom_shortness_breath': np.random.choice([0, 1], p=[0.5, 0.5]),
-                'symptom_frequent_urination': np.random.choice([0, 1], p=[0.1, 0.9])
-            })
-        
-        elif archetype == 'elderly_frail':
-            patient.update({
-                'glucose': np.random.normal(100, 15),
-                'bp_systolic': np.random.normal(140, 25),
-                'bp_diastolic': np.random.normal(80, 15),
-                'cholesterol': np.random.normal(200, 40),
-                'hba1c': np.random.normal(5.6, 0.5),
-                'symptom_fatigue': np.random.choice([0, 1], p=[0.1, 0.9]),
-                'symptom_chest_pain': np.random.choice([0, 1], p=[0.4, 0.6]),
-                'symptom_shortness_breath': np.random.choice([0, 1], p=[0.2, 0.8]),
-                'symptom_frequent_urination': np.random.choice([0, 1], p=[0.5, 0.5])
-            })
-        
-        return patient
+            age          = np.random.randint(*params['age_range'])
+            bmi          = np.random.uniform(*params['bmi_range'])
+
+            patient      = {'patient_id'  : patient_id,
+                            'age'         : age,
+                            'bmi'         : bmi,
+                            'archetype'   : archetype
+                            }
+
+            if archetype == 'healthy':
+                patient.update({'glucose'                     : np.random.normal(90, 5),
+                                'bp_systolic'                 : np.random.normal(115, 10),
+                                'bp_diastolic'                : np.random.normal(75, 8),
+                                'cholesterol'                 : np.random.normal(180, 20),
+                                'hba1c'                       : np.random.normal(5.2, 0.3),
+                                'symptom_fatigue'             : np.random.choice([0, 1], p = [0.9, 0.1]),
+                                'symptom_chest_pain'          : np.random.choice([0, 1], p = [0.95, 0.05]),
+                                'symptom_shortness_breath'    : np.random.choice([0, 1], p = [0.9, 0.1]),
+                                'symptom_frequent_urination'  : np.random.choice([0, 1], p = [0.95, 0.05])
+                                })
+
+            elif archetype == 'prediabetic':
+                patient.update({'glucose'                     : np.random.normal(105, 8),
+                                'bp_systolic'                 : np.random.normal(135, 15),
+                                'bp_diastolic'                : np.random.normal(85, 10),
+                                'cholesterol'                 : np.random.normal(220, 30),
+                                'hba1c'                       : np.random.normal(5.8, 0.2),
+                                'symptom_fatigue'             : np.random.choice([0, 1], p = [0.4, 0.6]),
+                                'symptom_chest_pain'          : np.random.choice([0, 1], p = [0.8, 0.2]),
+                                'symptom_shortness_breath'    : np.random.choice([0, 1], p = [0.7, 0.3]),
+                                'symptom_frequent_urination'  : np.random.choice([0, 1], p = [0.6, 0.4])
+                                })
+
+            elif archetype == 'cardiovascular_risk':
+                patient.update({'glucose'                     : np.random.normal(95, 10),
+                                'bp_systolic'                 : np.random.normal(155, 20),
+                                'bp_diastolic'                : np.random.normal(95, 12),
+                                'cholesterol'                 : np.random.normal(260, 40),
+                                'hba1c'                       : np.random.normal(5.4, 0.4),
+                                'symptom_fatigue'             : np.random.choice([0, 1], p = [0.3, 0.7]),
+                                'symptom_chest_pain'          : np.random.choice([0, 1], p = [0.2, 0.8]),
+                                'symptom_shortness_breath'    : np.random.choice([0, 1], p = [0.2, 0.8]),
+                                'symptom_frequent_urination'  : np.random.choice([0, 1], p = [0.8, 0.2])
+                                })
+
+            elif archetype == 'diabetic':
+                patient.update({'glucose'                     : np.random.normal(145, 25),
+                                'bp_systolic'                 : np.random.normal(145, 18),
+                                'bp_diastolic'                : np.random.normal(90, 12),
+                                'cholesterol'                 : np.random.normal(240, 35),
+                                'hba1c'                       : np.random.normal(7.2, 0.8),
+                                'symptom_fatigue'             : np.random.choice([0, 1], p = [0.1, 0.9]),
+                                'symptom_chest_pain'          : np.random.choice([0, 1], p = [0.6, 0.4]),
+                                'symptom_shortness_breath'    : np.random.choice([0, 1], p = [0.5, 0.5]),
+                                'symptom_frequent_urination'  : np.random.choice([0, 1], p = [0.1, 0.9])
+                                })
+
+            elif archetype == 'elderly_frail':
+                patient.update({'glucose'                     : np.random.normal(100, 15),
+                                'bp_systolic'                 : np.random.normal(140, 25),
+                                'bp_diastolic'                : np.random.normal(80, 15),
+                                'cholesterol'                 : np.random.normal(200, 40),
+                                'hba1c'                       : np.random.normal(5.6, 0.5),
+                                'symptom_fatigue'             : np.random.choice([0, 1], p = [0.1, 0.9]),
+                                'symptom_chest_pain'          : np.random.choice([0, 1], p = [0.4, 0.6]),
+                                'symptom_shortness_breath'    : np.random.choice([0, 1], p = [0.2, 0.8]),
+                                'symptom_frequent_urination'  : np.random.choice([0, 1], p = [0.5, 0.5])
+                                })
+
+            test_logger.debug(f"Generated patient record: ID {patient_id}, Archetype: {archetype}")
+            
+            return patient
+
+        except Exception as e:
+            test_logger.error(f"Error generating patient {patient_id} for archetype '{archetype}': {e}")
+            
+            raise
+
 
 class HealthcareSOMAnalyzer:
     """Main analyzer class for healthcare SOM"""
