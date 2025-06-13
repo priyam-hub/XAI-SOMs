@@ -4,10 +4,10 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from librosa import ex
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from librosa import ex
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
