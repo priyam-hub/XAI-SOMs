@@ -24,10 +24,6 @@ Built with scalability and real-world deployment in mind, this system supports r
 
 ---
 
-Here's a well-structured and detailed **Dataset** section you can include under your `README.md` for your project `XAI-SOMs`, based on the Kaggle dataset: [Diabetes Data Set](https://www.kaggle.com/datasets/mathchi/diabetes-data-set).
-
----
-
 ## 📚 Dataset - Diabetes Data Set
 
 📎 **Source**: [Diabetes Data Set – Kaggle](https://www.kaggle.com/datasets/mathchi/diabetes-data-set)
