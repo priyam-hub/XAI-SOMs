@@ -24,41 +24,54 @@ Built with scalability and real-world deployment in mind, this system supports r
 
 ---
 
-## 📚 Dataset - Medical Health Records (Demo)
+Here's a well-structured and detailed **Dataset** section you can include under your `README.md` for your project `XAI-SOMs`, based on the Kaggle dataset: [Diabetes Data Set](https://www.kaggle.com/datasets/mathchi/diabetes-data-set).
 
-📎 **Note**: For demo purposes, synthetic patient data or publicly available de-identified datasets are used. You can plug in any tabular healthcare dataset with proper `patient_id`, `diagnosis`, `procedures`, or clinical events.
+---
 
-#### 📁 Expected Dataset Columns:
+## 📚 Dataset - Diabetes Data Set
 
-* `patient_id`: Unique identifier for each patient
-* `age`, `gender`, `comorbidities`, etc.
-* Clinical events: diagnosis codes, procedures, outcomes, medications, etc.
+📎 **Source**: [Diabetes Data Set – Kaggle](https://www.kaggle.com/datasets/mathchi/diabetes-data-set)
 
-> ⚠️ **Note**: Real-world data must comply with HIPAA or other local medical privacy laws.
+The **Diabetes Data Set** is a structured medical dataset containing information on diabetes diagnoses and related features. It is commonly used for binary classification tasks in healthcare ML systems to predict the presence or absence of diabetes.
+
+#### 📁 Dataset Highlights:
+
+* **Total Records**: 1,015 patient records
+* **Type**: Tabular (Structured)
+* **Task**: Binary Classification — Diabetes (Positive/Negative)
+
+#### ✅ Why This Dataset?
+
+* Rich in **biomedical indicators** that affect diabetes.
+* Ideal for **unsupervised learning** tasks like **Self-Organizing Maps (SOMs)** to visualize and cluster patient patterns.
+* Suitable for **XAI (Explainable AI)** methods for interpreting model decisions in healthcare.
+* Balanced and clean, making it suitable for both beginners and research projects.
+
+> 📌 **Dataset Link**: [https://www.kaggle.com/datasets/mathchi/diabetes-data-set](https://www.kaggle.com/datasets/mathchi/diabetes-data-set)
 
 ---
 
 ## 🚀 Features of *XAI-SOMs*
 
-* 🧬 **Self-Organizing Maps for Healthcare**  
+* **Self-Organizing Maps for Healthcare**  
   Unsupervised learning to map patients into 2D grid based on medical similarity.
 
-* 🔍 **Explainability-Driven Analysis**  
+* **Explainability-Driven Analysis**  
   Cluster-level topic modeling, patient feature contributions, and interpretable visualization.
 
-* 📊 **Regulatory-Grade Reporting**  
+* **Regulatory-Grade Reporting**  
   Automatic PDF/JSON summary reports on patient distributions, clusters, and risks.
 
-* 🧭 **Medical Coherence Validator**  
+* **Medical Coherence Validator**  
   Domain-specific validator to ensure output clusters reflect clinical sense.
 
-* 🧾 **Comprehensive Logging & Error Tracing**  
+* **Comprehensive Logging & Error Tracing**  
   Structured logs using custom logger `test_logger` for better debugging and traceability.
 
-* 💡 **Interactive Visualization Tools**  
+* **Interactive Visualization Tools**  
   Patient journey mapping, heatmaps, and SOM plots for user-driven exploration.
 
-* 🔁 **Reproducible & Modular Pipeline**  
+* **Reproducible & Modular Pipeline**  
   Seamlessly plug and play with different encoders, normalizers, SOM grid sizes, or patient features.
 
 ---
