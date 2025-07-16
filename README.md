@@ -202,7 +202,7 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 
 <div align="center">
 
-**Made by Priyam Pal**
+**Made by Priyam Pal - AI and Data Science Engineer**
 
 🔗 [Visit the Repo](https://github.com/priyam-hub/XAI-SOMs) • ⭐ Star if you find it useful!
 
